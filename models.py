@@ -132,7 +132,7 @@ class User:
         self.orders.sort(key=lambda x: x.order_date)
 
     def get_order_history(self):
-        return [order for order in self.orders]
+        return self.orders
 
 
 class PaymentGateway:
