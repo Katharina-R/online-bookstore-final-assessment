@@ -1,3 +1,4 @@
+from typing import Dict, Optional
 from flask import (
     Flask,
     render_template,
@@ -5,7 +6,6 @@ from flask import (
     redirect,
     url_for,
     flash,
-    jsonify,
     session,
 )
 from models import Book, Cart, User, Order, PaymentGateway, EmailService
@@ -15,8 +15,8 @@ app = Flask(__name__)
 app.secret_key = "your_secret_key"  # Required for session management
 
 # Global storage for users and orders (in production, use a database)
-users = {}  # email -> User object
-orders = {}  # order_id -> Order object
+users: Dict[str, User] = {}  # email -> User object
+orders: Dict[str, Order] = {}  # order_id -> Order object
 
 # Create demo user for testing
 demo_user = User(
@@ -25,7 +25,7 @@ demo_user = User(
 users["demo@bookstore.com"] = demo_user
 
 # Create a cart instance to manage the cart
-cart = Cart()
+cart: Cart = Cart()
 
 # Create a global books list to avoid duplication
 BOOKS = [
@@ -36,30 +36,30 @@ BOOKS = [
 ]
 
 
-def get_book_by_title(title):
+def get_book_by_title(title: str):
     """Helper function to find a book by title"""
     return next((book for book in BOOKS if book.title == title), None)
 
 
-def get_current_user():
+def get_current_user() -> Optional[User]:
     """Helper function to get current logged-in user"""
     if "user_email" in session:
         return users.get(session["user_email"])
     return None
 
 
-def login_required(f):
+def login_required(f):  # type: ignore
     """Decorator to require login for certain routes"""
     from functools import wraps
 
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
+    @wraps(f)  # type: ignore
+    def decorated_function(*args, **kwargs):  # type: ignore
         if "user_email" not in session:
             flash("Please log in to access this page.", "error")
             return redirect(url_for("login"))
-        return f(*args, **kwargs)
+        return f(*args, **kwargs)  # type: ignore
 
-    return decorated_function
+    return decorated_function  # type: ignore
 
 
 @app.route("/")
@@ -93,6 +93,12 @@ def add_to_cart():
 @app.route("/remove-from-cart", methods=["POST"])
 def remove_from_cart():
     book_title = request.form.get("title")
+
+    # Validate required fields
+    if not book_title:
+        flash("Cannot remove book with unknown book_title", "error")
+        return redirect(url_for("view_cart"))
+
     cart.remove_book(book_title)
     flash(f'Removed "{book_title}" from cart!', "success")
     return redirect(url_for("view_cart"))
@@ -115,8 +121,13 @@ def update_cart():
         - Confirmation of removal if quantity <= 0
         - Confirmation of update otherwise
     """
-    book_title = request.form.get("title")
+    book_title: Optional[str] = request.form.get("title")
     quantity = int(request.form.get("quantity", 1))
+
+    # Validate required fields
+    if not book_title:
+        flash("Cannot update quantity for unknown book_title", "error")
+        return redirect(url_for("view_cart"))
 
     cart.update_quantity(book_title, quantity)
 
@@ -177,7 +188,7 @@ def process_checkout():
         "cvv": request.form.get("cvv"),
     }
 
-    discount_code = request.form.get("discount_code", "")
+    discount_code = request.form.get("discount_code")
 
     # Calculate total with discount
     total_amount = cart.get_total_price()
@@ -213,14 +224,14 @@ def process_checkout():
     payment_result = PaymentGateway.process_payment(payment_info)
 
     if not payment_result["success"]:
-        flash(payment_result["message"], "error")
+        flash(str(payment_result["message"]), "error")
         return redirect(url_for("checkout"))
 
     # Create order
     order_id = str(uuid.uuid4())[:8].upper()
     order = Order(
         order_id=order_id,
-        user_email=shipping_info["email"],
+        user_email=str(shipping_info["email"]),
         items=cart.get_items(),
         shipping_info=shipping_info,
         payment_info={
@@ -239,7 +250,7 @@ def process_checkout():
         current_user.add_order(order)
 
     # Send confirmation email (mock)
-    EmailService.send_order_confirmation(shipping_info["email"], order)
+    EmailService.send_order_confirmation(str(shipping_info["email"]), order)
 
     # Clear cart
     cart.clear()
@@ -252,7 +263,7 @@ def process_checkout():
 
 
 @app.route("/order-confirmation/<order_id>")
-def order_confirmation(order_id):
+def order_confirmation(order_id: str):
     """Display order confirmation page"""
     order = orders.get(order_id)
     if not order:
@@ -275,10 +286,10 @@ def register():
         email = request.form.get("email")
         password = request.form.get("password")
         name = request.form.get("name")
-        address = request.form.get("address", "")
+        address = request.form.get("address")
 
         # Validate required fields
-        if not email or not password or not name:
+        if not email or not password or not name or not address:
             flash("Please fill in all required fields", "error")
             return render_template("register.html")
 
@@ -304,6 +315,11 @@ def login():
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
+
+        # Validate required fields
+        if not email:
+            flash("Please fill in all required fields", "error")
+            return render_template("login.html")
 
         user = users.get(email)
         if user and user.password == password:
@@ -337,6 +353,11 @@ def account():
 def update_profile():
     """Update user profile"""
     current_user = get_current_user()
+
+    # Validate required fields
+    if not current_user:
+        flash("Cannot update profile for unknown user", "error")
+        return redirect(url_for("account"))
 
     current_user.name = request.form.get("name", current_user.name)
     current_user.address = request.form.get("address", current_user.address)
