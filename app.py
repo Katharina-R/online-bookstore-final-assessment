@@ -182,6 +182,8 @@ def process_checkout():
     }
 
     discount_code = request.form.get("discount_code")
+    if discount_code:
+        discount_code = discount_code.upper().strip()
 
     # Calculate total with discount
     total_amount = cart.get_total_price()
