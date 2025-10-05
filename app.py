@@ -80,7 +80,14 @@ def index():
 @app.route("/add-to-cart", methods=["POST"])
 def add_to_cart():
     book_title = request.form.get("title")
-    quantity = int(request.form.get("quantity", 1))
+    quantity = str(request.form.get("quantity", 1))
+
+    # Validate quantity
+    if quantity.isdigit():
+        quantity = int(quantity)
+    else:
+        flash(f"Received non-numeric quantity {quantity}")
+        return redirect(url_for("view_cart"))
 
     book = BOOKS.get(book_title) if book_title else None
 
@@ -125,9 +132,16 @@ def update_cart():
         - Confirmation of update otherwise
     """
     book_title: Optional[str] = request.form.get("title")
-    quantity = int(request.form.get("quantity", 1))
+    quantity = str(request.form.get("quantity", 1))
 
-    # Validate required fields
+    # Validate quantity
+    if quantity.isdigit():
+        quantity = int(quantity)
+    else:
+        flash(f"Received non-numeric quantity {quantity}")
+        return redirect(url_for("view_cart"))
+
+    # Validate book_title
     if not book_title:
         flash("Cannot update quantity for unknown book_title", "error")
         return redirect(url_for("view_cart"))
