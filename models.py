@@ -57,12 +57,8 @@ class Cart:
         if book_title in self.items:
             self.items[book_title].quantity = quantity
 
-    def get_total_price(self):
-        total = 0
-        for item in self.items.values():
-            for _ in range(item.quantity):
-                total += item.book.price
-        return total
+    def get_total_price(self) -> float:
+        return sum(item.get_total_price() for item in self.items.values())
 
     def get_total_items(self):
         return sum(item.quantity for item in self.items.values())
