@@ -3,6 +3,7 @@ import heapq
 import re
 from typing import Any, Dict, List, Union, Optional
 import datetime
+import bcrypt
 import uuid
 
 
@@ -180,11 +181,26 @@ class User:
 
     def __init__(self, email: str, password: str, name: str = "", address: str = ""):
         self.email = email
-        self.password = password
+        self.password = User.hash_password(password)
         self.name = name
         self.address = address
         self.orders: List[Order] = []
         heapq.heapify(self.orders)
+
+    @classmethod
+    def hash_password(cls, plain_password: str) -> bytes:
+        salt = bcrypt.gensalt()
+        # bcrypt requires bytes input, so encode string to bytes
+        return bcrypt.hashpw(plain_password.encode("utf-8"), salt)
+
+    def set_password(self, password: str) -> None:
+        self.password = User.hash_password(password)
+
+    def check_password(self, password: Optional[str]) -> bool:
+        if not password:
+            return False
+
+        return self.password == User.hash_password(password)
 
     def add_order(self, order: Order):
         # Push Order objects sorted by order date
