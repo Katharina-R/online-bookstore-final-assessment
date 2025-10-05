@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional, Union
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List, Union, Optional
 
 
 class Book:
@@ -88,6 +89,41 @@ class Cart:
         return len(self.items) == 0
 
 
+@dataclass
+class ShippingInfo:
+    name: str
+    email: str
+    address: str
+    city: str
+    zip_code: str
+
+    @classmethod
+    def from_opt_values(
+        cls,
+        name: Optional[str],
+        email: Optional[str],
+        address: Optional[str],
+        city: Optional[str],
+        zip_code: Optional[str],
+    ) -> Union["ShippingInfo", str]:
+        if not name:
+            return "Please provide a valid name"
+        if not email or "@" not in email:
+            return "Please provide a valid email"
+        # Depending on whether we're shipping internationally or not
+        # we may know more about the address format (e.g. pgeocode)
+        if not address:
+            return "Please provide a valid address"
+        if not city:
+            return "Please provide a valid city"
+        if not zip_code:
+            return "Please provide a valid zip_code"
+
+        return cls(
+            name=name, email=email, address=address, city=city, zip_code=zip_code
+        )
+
+
 class Order:
     """Order management class"""
 
@@ -96,7 +132,7 @@ class Order:
         order_id: str,
         user_email: str,
         items: List[CartItem],
-        shipping_info: Dict[str, Optional[str]],
+        shipping_info: ShippingInfo,
         payment_info: Dict[str, Union[None, bool, str]],
         total_amount: float,
     ):
@@ -123,7 +159,7 @@ class Order:
                 }
                 for item in self.items
             ],
-            "shipping_info": self.shipping_info,
+            "shipping_info": asdict(self.shipping_info),
             "total_amount": self.total_amount,
             "order_date": self.order_date.strftime("%Y-%m-%d %H:%M:%S"),
             "status": self.status,
@@ -199,7 +235,7 @@ class EmailService:
         print(f"Items:")
         for item in order.items:
             print(f"  - {item.book.title} x{item.quantity} @ ${item.book.price:.2f}")
-        print(f"Shipping Address: {order.shipping_info.get('address', 'N/A')}")
+        print(f"Shipping Address: {order.shipping_info.address}")
         print(f"==================\n")
 
         return True

@@ -8,7 +8,7 @@ from flask import (
     flash,
     session,
 )
-from models import Book, Cart, User, Order, PaymentGateway, EmailService
+from models import Book, Cart, User, Order, PaymentGateway, EmailService, ShippingInfo
 import uuid
 
 app = Flask(__name__)
@@ -165,15 +165,20 @@ def process_checkout():
         flash("Your cart is empty!", "error")
         return redirect(url_for("index"))
 
-    # Get form data
-    shipping_info = {
-        "name": request.form.get("name"),
-        "email": request.form.get("email"),
-        "address": request.form.get("address"),
-        "city": request.form.get("city"),
-        "zip_code": request.form.get("zip_code"),
-    }
+    # Get shipping information
+    shipping_info = ShippingInfo.from_opt_values(
+        name=request.form.get("name"),
+        email=request.form.get("email"),
+        address=request.form.get("address"),
+        city=request.form.get("city"),
+        zip_code=request.form.get("zip_code"),
+    )
 
+    if isinstance(shipping_info, str):
+        flash(shipping_info, "error")
+        return redirect(url_for("checkout"))
+
+    # Get payment information
     payment_info = {
         "payment_method": request.form.get("payment_method"),
         "card_number": request.form.get("card_number"),
@@ -200,12 +205,6 @@ def process_checkout():
     elif discount_code:
         flash("Invalid discount code", "error")
 
-    required_fields = ["name", "email", "address", "city", "zip_code"]
-    for field in required_fields:
-        if not shipping_info.get(field):
-            flash(f'Please fill in the {field.replace("_", " ")} field', "error")
-            return redirect(url_for("checkout"))
-
     if payment_info["payment_method"] == "credit_card":
         if (
             not payment_info.get("card_number")
@@ -226,7 +225,7 @@ def process_checkout():
     order_id = str(uuid.uuid4())[:8].upper()
     order = Order(
         order_id=order_id,
-        user_email=str(shipping_info["email"]),
+        user_email=shipping_info.email,
         items=cart.get_items(),
         shipping_info=shipping_info,
         payment_info={
@@ -245,7 +244,7 @@ def process_checkout():
         current_user.add_order(order)
 
     # Send confirmation email (mock)
-    EmailService.send_order_confirmation(str(shipping_info["email"]), order)
+    EmailService.send_order_confirmation(shipping_info.email, order)
 
     # Clear cart
     cart.clear()
