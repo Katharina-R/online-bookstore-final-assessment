@@ -3,6 +3,9 @@ from typing import Any, Dict, List, Optional, Union
 
 class Book:
     def __init__(self, title: str, category: str, price: float, image: str):
+        if price <= 0:
+            raise ValueError(f"Books must have a positive price. Received {price}")
+
         self.title = title
         self.category = category
         self.price = price
@@ -11,6 +14,11 @@ class Book:
 
 class CartItem:
     def __init__(self, book: Book, quantity: int = 1):
+        if quantity <= 0:
+            raise ValueError(
+                f"Cart items must have a positive quantity. Received {quantity}"
+            )
+
         self.book = book
         self.quantity = quantity
 
@@ -44,6 +52,11 @@ class Cart:
         self.items: Dict[str, CartItem] = {}
 
     def add_book(self, book: Book, quantity: int = 1):
+        if quantity <= 0:
+            raise ValueError(
+                f"Must provide a postivie quantity when adding books to cart. Received {quantity}"
+            )
+
         if book.title in self.items:
             self.items[book.title].quantity += quantity
         else:
@@ -54,7 +67,9 @@ class Cart:
             del self.items[book_title]
 
     def update_quantity(self, book_title: str, quantity: int):
-        if book_title in self.items:
+        if quantity <= 0:
+            self.remove_book(book_title)
+        elif book_title in self.items:
             self.items[book_title].quantity = quantity
 
     def get_total_price(self) -> float:
