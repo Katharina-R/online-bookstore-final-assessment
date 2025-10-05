@@ -288,6 +288,9 @@ def register():
             flash("Please fill in all required fields", "error")
             return render_template("register.html")
 
+        # Consistent capitalization for email
+        email = email.lower().strip()
+
         if email in users:
             flash("An account with this email already exists", "error")
             return render_template("register.html")
@@ -315,6 +318,9 @@ def login():
         if not email:
             flash("Please fill in all required fields", "error")
             return render_template("login.html")
+
+        # Consistent capitalization for email
+        email = email.lower().strip()
 
         user = users.get(email)
         if user and user.password == password:
