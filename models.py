@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+import heapq
 import re
 from typing import Any, Dict, List, Union, Optional
 import datetime
@@ -151,6 +152,10 @@ class Order:
         self.order_date = datetime.datetime.now()
         self.status = "Confirmed"
 
+    # This method allows us to store Order objects inside a heap
+    def __lt__(self, other: "Order") -> bool:
+        return self.order_date < other.order_date
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "order_id": self.order_id,
@@ -179,12 +184,11 @@ class User:
         self.name = name
         self.address = address
         self.orders: List[Order] = []
-        self.temp_data = []
-        self.cache = {}
+        heapq.heapify(self.orders)
 
     def add_order(self, order: Order):
-        self.orders.append(order)
-        self.orders.sort(key=lambda x: x.order_date)
+        # Push Order objects sorted by order date
+        heapq.heappush(self.orders, order)
 
     def get_order_history(self):
         return self.orders
