@@ -27,18 +27,15 @@ users["demo@bookstore.com"] = demo_user
 # Create a cart instance to manage the cart
 cart: Cart = Cart()
 
-# Create a global books list to avoid duplication
-BOOKS = [
-    Book("The Great Gatsby", "Fiction", 10.99, "/images/books/the_great_gatsby.jpg"),
-    Book("1984", "Dystopia", 8.99, "/images/books/1984.jpg"),
-    Book("I Ching", "Traditional", 18.99, "/images/books/I-Ching.jpg"),
-    Book("Moby Dick", "Adventure", 12.49, "/images/books/moby_dick.jpg"),
-]
-
-
-def get_book_by_title(title: str):
-    """Helper function to find a book by title"""
-    return next((book for book in BOOKS if book.title == title), None)
+# Create a global books dicationary to avoid duplication
+BOOKS: Dict[str, Book] = {
+    "The Great Gatsby": Book(
+        "The Great Gatsby", "Fiction", 10.99, "/images/books/the_great_gatsby.jpg"
+    ),
+    "1984": Book("1984", "Dystopia", 8.99, "/images/books/1984.jpg"),
+    "I Ching": Book("I Ching", "Traditional", 18.99, "/images/books/I-Ching.jpg"),
+    "Moby Dick": Book("Moby Dick", "Adventure", 12.49, "/images/books/moby_dick.jpg"),
+}
 
 
 def get_current_user() -> Optional[User]:
@@ -66,7 +63,7 @@ def login_required(f):  # type: ignore
 def index():
     current_user = get_current_user()
     return render_template(
-        "index.html", books=BOOKS, cart=cart, current_user=current_user
+        "index.html", books=BOOKS.values(), cart=cart, current_user=current_user
     )
 
 
@@ -75,11 +72,7 @@ def add_to_cart():
     book_title = request.form.get("title")
     quantity = int(request.form.get("quantity", 1))
 
-    book = None
-    for b in BOOKS:
-        if b.title == book_title:
-            book = b
-            break
+    book = BOOKS.get(book_title) if book_title else None
 
     if book:
         cart.add_book(book, quantity)
