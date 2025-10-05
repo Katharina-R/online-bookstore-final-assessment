@@ -20,6 +20,7 @@ from models import (
     PaypalPaymentInfo,
 )
 import uuid
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"  # Required for session management
@@ -57,7 +58,6 @@ def get_current_user() -> Optional[User]:
 
 def login_required(f):  # type: ignore
     """Decorator to require login for certain routes"""
-    from functools import wraps
 
     @wraps(f)  # type: ignore
     def decorated_function(*args, **kwargs):  # type: ignore

@@ -1,6 +1,8 @@
 from dataclasses import asdict, dataclass
 import re
 from typing import Any, Dict, List, Union, Optional
+import datetime
+import uuid
 
 
 class Book:
@@ -138,7 +140,6 @@ class Order:
         transaction_id: str,
         total_amount: float,
     ):
-        import datetime
 
         self.order_id = order_id
         self.user_email = user_email
@@ -266,8 +267,6 @@ class PaymentGateway:
         else:
             # Mock logic: Do nothing for paypal transactions
             pass
-
-        import uuid
 
         transaction_id = f"TXN{uuid.uuid4()}"
 
