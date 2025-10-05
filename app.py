@@ -8,7 +8,17 @@ from flask import (
     flash,
     session,
 )
-from models import Book, Cart, User, Order, PaymentGateway, EmailService, ShippingInfo
+from models import (
+    Book,
+    Cart,
+    User,
+    Order,
+    PaymentGateway,
+    EmailService,
+    ShippingInfo,
+    CardPaymentInfo,
+    PaypalPaymentInfo,
+)
 import uuid
 
 app = Flask(__name__)
@@ -178,14 +188,6 @@ def process_checkout():
         flash(shipping_info, "error")
         return redirect(url_for("checkout"))
 
-    # Get payment information
-    payment_info = {
-        "payment_method": request.form.get("payment_method"),
-        "card_number": request.form.get("card_number"),
-        "expiry_date": request.form.get("expiry_date"),
-        "cvv": request.form.get("cvv"),
-    }
-
     discount_code = request.form.get("discount_code")
     if discount_code:
         discount_code = discount_code.upper().strip()
@@ -205,20 +207,31 @@ def process_checkout():
     elif discount_code:
         flash("Invalid discount code", "error")
 
-    if payment_info["payment_method"] == "credit_card":
-        if (
-            not payment_info.get("card_number")
-            or not payment_info.get("expiry_date")
-            or not payment_info.get("cvv")
-        ):
-            flash("Please fill in all credit card details", "error")
-            return redirect(url_for("checkout"))
+    # Get payment information based on the payment method
+    payment_method = request.form.get("payment_method")
+    if payment_method == "credit_card":
+        payment_info = CardPaymentInfo.from_opt_values(
+            payment_method="credit_card",
+            card_number=request.form.get("card_number"),
+            expiry_date=request.form.get("expiry_date"),
+            cvv=request.form.get("cvv"),
+        )
+    elif payment_method == "paypal":
+        payment_info = PaypalPaymentInfo.from_opt_values(
+            payment_method="paypal", email=request.form.get("paypal_email")
+        )
+    else:
+        payment_info = f"Received invalid payment method {payment_method}"
+
+    if isinstance(payment_info, str):
+        flash(payment_info, "error")
+        return redirect(url_for("checkout"))
 
     # Process payment through mock gateway
     payment_result = PaymentGateway.process_payment(payment_info)
 
-    if not payment_result["success"]:
-        flash(str(payment_result["message"]), "error")
+    if not payment_result.transaction_id:
+        flash(payment_result.message, "error")
         return redirect(url_for("checkout"))
 
     # Create order
@@ -228,10 +241,8 @@ def process_checkout():
         user_email=shipping_info.email,
         items=cart.get_items(),
         shipping_info=shipping_info,
-        payment_info={
-            "method": payment_info["payment_method"],
-            "transaction_id": payment_result["transaction_id"],
-        },
+        payment_method=payment_info.payment_method,
+        transaction_id=payment_result.transaction_id,
         total_amount=total_amount,
     )
 

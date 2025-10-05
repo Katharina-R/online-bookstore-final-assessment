@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+import re
 from typing import Any, Dict, List, Union, Optional
 
 
@@ -133,7 +134,8 @@ class Order:
         user_email: str,
         items: List[CartItem],
         shipping_info: ShippingInfo,
-        payment_info: Dict[str, Union[None, bool, str]],
+        payment_method: str,
+        transaction_id: str,
         total_amount: float,
     ):
         import datetime
@@ -142,7 +144,8 @@ class Order:
         self.user_email = user_email
         self.items = items.copy()  # Copy of cart items
         self.shipping_info = shipping_info
-        self.payment_info = payment_info
+        self.payment_method = payment_method
+        self.transaction_id = transaction_id
         self.total_amount = total_amount
         self.order_date = datetime.datetime.now()
         self.status = "Confirmed"
@@ -186,39 +189,92 @@ class User:
         return self.orders
 
 
+@dataclass
+class CardPaymentInfo:
+    payment_method: str
+    card_number: str
+    expiry_date: str
+    cvv: str
+
+    @classmethod
+    def from_opt_values(
+        cls,
+        payment_method: str,
+        card_number: Optional[str],
+        expiry_date: Optional[str],
+        cvv: Optional[str],
+    ) -> Union["CardPaymentInfo", str]:
+        if (
+            not card_number
+            or not card_number.isdigit()
+            or not (13 <= len(card_number) <= 19)
+        ):
+            return "Please provide a valid card number"
+
+        # The month is between 01 and 12
+        if not expiry_date or not re.match(r"^(0[1-9]|1[0-2])\/\d{2}$", expiry_date):
+            return "Please provide a valid expiry date"
+
+        if not cvv or not cvv.isdigit() or not (3 <= len(cvv) <= 4):
+            return "Please provide a valid cvv"
+
+        return CardPaymentInfo(
+            payment_method=payment_method,
+            card_number=card_number,
+            expiry_date=expiry_date,
+            cvv=cvv,
+        )
+
+
+@dataclass
+class PaypalPaymentInfo:
+    payment_method: str
+    email: str
+
+    @classmethod
+    def from_opt_values(
+        cls, payment_method: str, email: Optional[str]
+    ) -> Union["PaypalPaymentInfo", str]:
+        if not email or "@" not in email:
+            return "Please provide a valid email"
+
+        return PaypalPaymentInfo(payment_method, email)
+
+
+@dataclass
+class PaymentResult:
+    message: str
+    transaction_id: Optional[str]
+
+
 class PaymentGateway:
     """Mock payment gateway for processing payments"""
 
     @staticmethod
     def process_payment(
-        payment_info: Dict[str, Any],
-    ) -> Dict[str, Union[None, bool, str]]:
+        payment_info: Union[CardPaymentInfo, PaypalPaymentInfo],
+    ) -> PaymentResult:
         """Mock payment processing - returns success/failure with mock logic"""
-        card_number: str = payment_info.get("card_number", "")
+        if isinstance(payment_info, CardPaymentInfo):
 
-        # Mock logic: cards ending in '1111' fail, others succeed
-        if card_number.endswith("1111"):
-            return {
-                "success": False,
-                "message": "Payment failed: Invalid card number",
-                "transaction_id": None,
-            }
-
-        import random
-        import time
-
-        time.sleep(0.1)
-
-        transaction_id = f"TXN{random.randint(100000, 999999)}"
-
-        if payment_info.get("payment_method") == "paypal":
+            # Mock logic: cards ending in '1111' fail, others succeed
+            if payment_info.card_number.endswith("1111"):
+                return PaymentResult(
+                    message="Payment failed: Invalid card number",
+                    transaction_id=None,
+                )
+        else:
+            # Mock logic: Do nothing for paypal transactions
             pass
 
-        return {
-            "success": True,
-            "message": "Payment processed successfully",
-            "transaction_id": transaction_id,
-        }
+        import uuid
+
+        transaction_id = f"TXN{uuid.uuid4()}"
+
+        return PaymentResult(
+            message="Payment processed successfully",
+            transaction_id=transaction_id,
+        )
 
 
 class EmailService:
