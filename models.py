@@ -1,21 +1,35 @@
 from dataclasses import asdict, dataclass
-import heapq
 import re
 from typing import Any, Dict, List, Union, Optional
 import datetime
 import bcrypt
 import uuid
+import bisect
 
 
 class Book:
     def __init__(self, title: str, category: str, price: float, image: str):
+        if not title:
+            raise ValueError("Book title cannot be empty")
+
+        if not category:
+            raise ValueError("Book category cannot be empty")
+
         if price <= 0:
             raise ValueError(f"Books must have a positive price. Received {price}")
+
+        if not image:
+            raise ValueError("Book image cannot be enpty")
 
         self.title = title
         self.category = category
         self.price = price
         self.image = image
+
+    # Without this printing books does not work as expected, e.g.
+    # {'The Great Gatsby': CartItem(book=<models.Book object at 0x000002A8E185C910>, quantity=2)}
+    def __repr__(self) -> str:
+        return f"Book(title={self.title}, category={self.category}, price={self.price}, image={self.image})"
 
 
 class CartItem:
@@ -30,6 +44,19 @@ class CartItem:
 
     def get_total_price(self):
         return self.book.price * self.quantity
+
+    # Without this the equality check for List[CartItem] does not work as expected, e.g.
+    # [<models.CartItem object at 0x000001FF2221BD10>] != [<models.CartItem object at 0x000001FF221BE7A0>]
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, CartItem):
+            return False
+
+        return self.book == other.book and self.quantity == other.quantity
+
+    # Without this printing (for debugging) does not work as expected, e.g.
+    # F{'The Great Gatsby': <models.CartItem object at 0x0000024CB636F570>}
+    def __repr__(self) -> str:
+        return f"CartItem(book={self.book}, quantity={self.quantity})"
 
 
 class Cart:
@@ -79,7 +106,9 @@ class Cart:
             self.items[book_title].quantity = quantity
 
     def get_total_price(self) -> float:
-        return sum(item.get_total_price() for item in self.items.values())
+        # Round total price to the nearest number with 2 decimal points
+        # (in case of floating point rounding errors)
+        return round(sum(item.get_total_price() for item in self.items.values()), 2)
 
     def get_total_items(self):
         return sum(item.quantity for item in self.items.values())
@@ -112,17 +141,19 @@ class ShippingInfo:
         zip_code: Optional[str],
     ) -> Union["ShippingInfo", str]:
         if not name:
-            return "Please provide a valid name"
-        if not email or "@" not in email:
-            return "Please provide a valid email"
+            return "Name cannot be empty"
+        if not email:
+            return "Email cannot be empty"
+        if "@" not in email:
+            return f"Email must contain `@`. Received {email}"
         # Depending on whether we're shipping internationally or not
         # we may know more about the address format (e.g. pgeocode)
         if not address:
-            return "Please provide a valid address"
+            return "Address cannot be empty"
         if not city:
-            return "Please provide a valid city"
+            return "City cannot be empty"
         if not zip_code:
-            return "Please provide a valid zip_code"
+            return "Zip code cannot be empty"
 
         return cls(
             name=name, email=email, address=address, city=city, zip_code=zip_code
@@ -142,6 +173,8 @@ class Order:
         transaction_id: str,
         total_amount: float,
     ):
+        if not items:
+            raise ValueError("Cannot create an order without items")
 
         self.order_id = order_id
         self.user_email = user_email
@@ -152,6 +185,11 @@ class Order:
         self.total_amount = total_amount
         self.order_date = datetime.datetime.now()
         self.status = "Confirmed"
+
+    # Without this printing order does not work as expected, e.g.
+    # <models.Order object at 0x000001EE0DCDDD10>
+    def __repr__(self) -> str:
+        return str(self.to_dict())
 
     # This method allows us to store Order objects inside a heap
     def __lt__(self, other: "Order") -> bool:
@@ -185,7 +223,6 @@ class User:
         self.name = name
         self.address = address
         self.orders: List[Order] = []
-        heapq.heapify(self.orders)
 
     @classmethod
     def hash_password(cls, plain_password: str) -> bytes:
@@ -200,11 +237,11 @@ class User:
         if not password:
             return False
 
-        return self.password == User.hash_password(password)
+        return bcrypt.checkpw(password.encode("utf-8"), self.password)
 
     def add_order(self, order: Order):
         # Push Order objects sorted by order date
-        heapq.heappush(self.orders, order)
+        bisect.insort(self.orders, order)
 
     def get_order_history(self):
         return self.orders
@@ -220,7 +257,6 @@ class CardPaymentInfo:
     @classmethod
     def from_opt_values(
         cls,
-        payment_method: str,
         card_number: Optional[str],
         expiry_date: Optional[str],
         cvv: Optional[str],
@@ -240,7 +276,7 @@ class CardPaymentInfo:
             return "Please provide a valid cvv"
 
         return CardPaymentInfo(
-            payment_method=payment_method,
+            payment_method="credit_card",
             card_number=card_number,
             expiry_date=expiry_date,
             cvv=cvv,
@@ -253,13 +289,11 @@ class PaypalPaymentInfo:
     email: str
 
     @classmethod
-    def from_opt_values(
-        cls, payment_method: str, email: Optional[str]
-    ) -> Union["PaypalPaymentInfo", str]:
+    def from_opt_values(cls, email: Optional[str]) -> Union["PaypalPaymentInfo", str]:
         if not email or "@" not in email:
             return "Please provide a valid email"
 
-        return PaypalPaymentInfo(payment_method, email)
+        return PaypalPaymentInfo("paypal", email)
 
 
 @dataclass

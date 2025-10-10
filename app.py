@@ -83,9 +83,9 @@ def add_to_cart():
     quantity = str(request.form.get("quantity", 1))
 
     # Validate quantity
-    if quantity.isdigit():
+    try:
         quantity = int(quantity)
-    else:
+    except:
         flash(f"Received non-numeric quantity {quantity}")
         return redirect(url_for("view_cart"))
 
@@ -135,9 +135,9 @@ def update_cart():
     quantity = str(request.form.get("quantity", 1))
 
     # Validate quantity
-    if quantity.isdigit():
+    try:
         quantity = int(quantity)
-    else:
+    except:
         flash(f"Received non-numeric quantity {quantity}")
         return redirect(url_for("view_cart"))
 
@@ -225,14 +225,13 @@ def process_checkout():
     payment_method = request.form.get("payment_method")
     if payment_method == "credit_card":
         payment_info = CardPaymentInfo.from_opt_values(
-            payment_method="credit_card",
             card_number=request.form.get("card_number"),
             expiry_date=request.form.get("expiry_date"),
             cvv=request.form.get("cvv"),
         )
     elif payment_method == "paypal":
         payment_info = PaypalPaymentInfo.from_opt_values(
-            payment_method="paypal", email=request.form.get("paypal_email")
+            email=request.form.get("paypal_email")
         )
     else:
         payment_info = f"Received invalid payment method {payment_method}"

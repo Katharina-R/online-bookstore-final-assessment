@@ -216,7 +216,6 @@ $RECYCLE.BIN/
 *.lnk
 
 # Test files and temporary files
-test_*.py
-*_test.py
+timeit_test.py
 temp/
 tmp/
