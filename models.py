@@ -100,6 +100,10 @@ class Cart:
             del self.items[book_title]
 
     def update_quantity(self, book_title: str, quantity: int):
+        if book_title not in self.items:
+            raise ValueError(
+                f"Cannot update quantity for book '{book_title}' as it is not in cart"
+            )
         if quantity <= 0:
             self.remove_book(book_title)
         elif book_title in self.items:
@@ -131,33 +135,34 @@ class ShippingInfo:
     city: str
     zip_code: str
 
-    @classmethod
-    def from_opt_values(
-        cls,
+    def __init__(
+        self,
         name: Optional[str],
         email: Optional[str],
         address: Optional[str],
         city: Optional[str],
         zip_code: Optional[str],
-    ) -> Union["ShippingInfo", str]:
+    ) -> None:
         if not name:
-            return "Name cannot be empty"
+            raise ValueError("Name cannot be empty")
         if not email:
-            return "Email cannot be empty"
+            raise ValueError("Email cannot be empty")
         if "@" not in email:
-            return f"Email must contain `@`. Received {email}"
+            raise ValueError(f"Email must contain `@`. Received {email}")
         # Depending on whether we're shipping internationally or not
         # we may know more about the address format (e.g. pgeocode)
         if not address:
-            return "Address cannot be empty"
+            raise ValueError("Address cannot be empty")
         if not city:
-            return "City cannot be empty"
+            raise ValueError("City cannot be empty")
         if not zip_code:
-            return "Zip code cannot be empty"
+            raise ValueError("Zip code cannot be empty")
 
-        return cls(
-            name=name, email=email, address=address, city=city, zip_code=zip_code
-        )
+        self.name = name
+        self.email = email
+        self.address = address
+        self.city = city
+        self.zip_code = zip_code
 
 
 class Order:
@@ -190,6 +195,13 @@ class Order:
     # <models.Order object at 0x000001EE0DCDDD10>
     def __repr__(self) -> str:
         return str(self.to_dict())
+
+    # Without this python will check if two Order objects are identical
+    # rather than checking if their content is equal
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Order):
+            return False
+        return self.to_dict() == other.to_dict()
 
     # This method allows us to store Order objects inside a heap
     def __lt__(self, other: "Order") -> bool:
@@ -224,6 +236,22 @@ class User:
         self.address = address
         self.orders: List[Order] = []
 
+    # Without this printing users does not work as expected, e.g. <models.User object at 0x0000019C59B47A80>
+    def __repr__(self) -> str:
+        return f"User(email={self.email}, password={self.password}, name={self.name}, address={self.address}, orders={self.orders})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, User):
+            return False
+
+        # Don't compare the password as it is hashed with a random salt
+        return (
+            self.email == other.email
+            and self.name == other.name
+            and self.address == other.address
+            and self.orders == other.orders
+        )
+
     @classmethod
     def hash_password(cls, plain_password: str) -> bytes:
         salt = bcrypt.gensalt()
@@ -254,33 +282,27 @@ class CardPaymentInfo:
     expiry_date: str
     cvv: str
 
-    @classmethod
-    def from_opt_values(
-        cls,
-        card_number: Optional[str],
-        expiry_date: Optional[str],
-        cvv: Optional[str],
-    ) -> Union["CardPaymentInfo", str]:
+    def __init__(
+        self, card_number: Optional[str], expiry_date: Optional[str], cvv: Optional[str]
+    ) -> None:
         if (
             not card_number
             or not card_number.isdigit()
             or not (13 <= len(card_number) <= 19)
         ):
-            return "Please provide a valid card number"
+            raise ValueError("Please provide a valid card number")
 
         # The month is between 01 and 12
         if not expiry_date or not re.match(r"^(0[1-9]|1[0-2])\/\d{2}$", expiry_date):
-            return "Please provide a valid expiry date"
+            raise ValueError("Please provide a valid expiry date")
 
         if not cvv or not cvv.isdigit() or not (3 <= len(cvv) <= 4):
-            return "Please provide a valid cvv"
+            raise ValueError("Please provide a valid cvv")
 
-        return CardPaymentInfo(
-            payment_method="credit_card",
-            card_number=card_number,
-            expiry_date=expiry_date,
-            cvv=cvv,
-        )
+        self.payment_method = "credit_card"
+        self.card_number = card_number
+        self.expiry_date = expiry_date
+        self.cvv = cvv
 
 
 @dataclass
@@ -288,12 +310,12 @@ class PaypalPaymentInfo:
     payment_method: str
     email: str
 
-    @classmethod
-    def from_opt_values(cls, email: Optional[str]) -> Union["PaypalPaymentInfo", str]:
+    def __init__(self, email: Optional[str]) -> None:
         if not email or "@" not in email:
-            return "Please provide a valid email"
+            raise ValueError("Please provide a valid email")
 
-        return PaypalPaymentInfo("paypal", email)
+        self.payment_method = "paypal"
+        self.email = email
 
 
 @dataclass

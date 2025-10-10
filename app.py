@@ -73,7 +73,7 @@ def login_required(f):  # type: ignore
 def index():
     current_user = get_current_user()
     return render_template(
-        "index.html", books=BOOKS.values(), cart=cart, current_user=current_user
+        "index.html", books=list(BOOKS.values()), cart=cart, current_user=current_user
     )
 
 
@@ -92,10 +92,13 @@ def add_to_cart():
     book = BOOKS.get(book_title) if book_title else None
 
     if book:
-        cart.add_book(book, quantity)
-        flash(f'Added {quantity} "{book.title}" to cart!', "success")
+        try:
+            cart.add_book(book, quantity)
+            flash(f'Added {quantity} "{book.title}" to cart!', "success")
+        except ValueError as e:
+            flash(f"Failed to add book to cart: {e}", "error")
     else:
-        flash("Book not found!", "error")
+        flash(f"Book '{book_title}' not found!", "error")
 
     return redirect(url_for("index"))
 
@@ -146,7 +149,11 @@ def update_cart():
         flash("Cannot update quantity for unknown book_title", "error")
         return redirect(url_for("view_cart"))
 
-    cart.update_quantity(book_title, quantity)
+    try:
+        cart.update_quantity(book_title, quantity)
+    except ValueError as e:
+        flash(f"Failed to udpate quantity: {e}", "error")
+        return redirect(url_for("view_cart"))
 
     if quantity <= 0:
         flash(f'Removed "{book_title}" from cart!', "success")
@@ -190,16 +197,16 @@ def process_checkout():
         return redirect(url_for("index"))
 
     # Get shipping information
-    shipping_info = ShippingInfo.from_opt_values(
-        name=request.form.get("name"),
-        email=request.form.get("email"),
-        address=request.form.get("address"),
-        city=request.form.get("city"),
-        zip_code=request.form.get("zip_code"),
-    )
-
-    if isinstance(shipping_info, str):
-        flash(shipping_info, "error")
+    try:
+        shipping_info = ShippingInfo(
+            name=request.form.get("name"),
+            email=request.form.get("email"),
+            address=request.form.get("address"),
+            city=request.form.get("city"),
+            zip_code=request.form.get("zip_code"),
+        )
+    except ValueError as e:
+        flash(f"{e}", "error")
         return redirect(url_for("checkout"))
 
     discount_code = request.form.get("discount_code")
@@ -220,24 +227,34 @@ def process_checkout():
         flash(f"Welcome discount applied! You saved ${discount_applied:.2f}", "success")
     elif discount_code:
         flash("Invalid discount code", "error")
+        return redirect(url_for("checkout"))
+
+    # Round to 2 digits after the decimal point
+    total_amount = round(total_amount, 2)
 
     # Get payment information based on the payment method
     payment_method = request.form.get("payment_method")
+    payment_info = None
+    error = ""
     if payment_method == "credit_card":
-        payment_info = CardPaymentInfo.from_opt_values(
-            card_number=request.form.get("card_number"),
-            expiry_date=request.form.get("expiry_date"),
-            cvv=request.form.get("cvv"),
-        )
+        try:
+            payment_info = CardPaymentInfo(
+                card_number=request.form.get("card_number"),
+                expiry_date=request.form.get("expiry_date"),
+                cvv=request.form.get("cvv"),
+            )
+        except ValueError as e:
+            error = f"{e}"
     elif payment_method == "paypal":
-        payment_info = PaypalPaymentInfo.from_opt_values(
-            email=request.form.get("paypal_email")
-        )
+        try:
+            payment_info = PaypalPaymentInfo(email=request.form.get("paypal_email"))
+        except ValueError as e:
+            error = f"{e}"
     else:
-        payment_info = f"Received invalid payment method {payment_method}"
+        error = f"Received invalid payment method {payment_method}"
 
-    if isinstance(payment_info, str):
-        flash(payment_info, "error")
+    if not payment_info:
+        flash(error, "error")
         return redirect(url_for("checkout"))
 
     # Process payment through mock gateway
@@ -339,7 +356,7 @@ def login():
 
         # Validate required fields
         if not email:
-            flash("Please fill in all required fields", "error")
+            flash("Please enter an email", "error")
             return render_template("login.html")
 
         # Consistent capitalization for email

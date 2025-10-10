@@ -238,11 +238,19 @@ class CartTest(unittest.TestCase):
         self.assertEqual(cart.get_items(), [])
 
         # There is no such book
-        cart.update_quantity(self.BOOK_1.title, 0)
+        with self.assertRaises(
+            ValueError,
+            msg=f"Cannot update quantity for book '{self.BOOK_1.title}' as it is not in cart",
+        ):
+            cart.update_quantity(self.BOOK_1.title, 0)
         self.assertEqual(cart.get_items(), [])
 
         # There is no such book
-        cart.update_quantity(self.BOOK_1.title, 1)
+        with self.assertRaises(
+            ValueError,
+            msg=f"Cannot update quantity for book '{self.BOOK_1.title}' as it is not in cart",
+        ):
+            cart.update_quantity(self.BOOK_1.title, 1)
         self.assertEqual(cart.get_items(), [])
 
     # Successful update: No quantity stays the same
@@ -252,11 +260,7 @@ class CartTest(unittest.TestCase):
         self.assertEqual(cart.get_items(), [CartItem(self.BOOK_1, 1)])
 
         # There is no such book
-        cart.update_quantity(self.BOOK_2.title, 0)
-        self.assertEqual(cart.get_items(), [CartItem(self.BOOK_1, 1)])
-
-        # There is no such book
-        cart.update_quantity(self.BOOK_2.title, 1)
+        cart.update_quantity(self.BOOK_1.title, 1)
         self.assertEqual(cart.get_items(), [CartItem(self.BOOK_1, 1)])
 
     # Successful update: Quantity changes
@@ -316,111 +320,67 @@ class ShippingInfoTest(unittest.TestCase):
 
     # Successful initialization
     def test_success(self) -> None:
-        self.assertEqual(
-            ShippingInfo.from_opt_values(
-                self.NAME, self.EMAIL, self.ADDRESS, self.CITY, self.ZIP_CODE
-            ),
-            ShippingInfo(self.NAME, self.EMAIL, self.ADDRESS, self.CITY, self.ZIP_CODE),
-        )
+        ShippingInfo(self.NAME, self.EMAIL, self.ADDRESS, self.CITY, self.ZIP_CODE)
 
     # Failed initialization: Name is None
     def test_name_none(self) -> None:
-        self.assertEqual(
-            "Name cannot be empty",
-            ShippingInfo.from_opt_values(
-                None, self.EMAIL, self.ADDRESS, self.CITY, self.ZIP_CODE
-            ),
-        )
+        with self.assertRaises(ValueError, msg="Name cannot be empty"):
+
+            ShippingInfo(None, self.EMAIL, self.ADDRESS, self.CITY, self.ZIP_CODE)
 
     # Failed initialization: Name is empty
     def test_name_empty(self) -> None:
-        self.assertEqual(
-            "Name cannot be empty",
-            ShippingInfo.from_opt_values(
-                "", self.EMAIL, self.ADDRESS, self.CITY, self.ZIP_CODE
-            ),
-        )
+        with self.assertRaises(ValueError, msg="Name cannot be empty"):
+            ShippingInfo("", self.EMAIL, self.ADDRESS, self.CITY, self.ZIP_CODE)
 
     # Failed initialization: Email is None
     def test_email_none(self) -> None:
-        self.assertEqual(
-            "Email cannot be empty",
-            ShippingInfo.from_opt_values(
-                self.NAME, None, self.ADDRESS, self.CITY, self.ZIP_CODE
-            ),
-        )
+        with self.assertRaises(ValueError, msg="Email cannot be empty"):
+            ShippingInfo(self.NAME, None, self.ADDRESS, self.CITY, self.ZIP_CODE)
 
     # Failed initialization: Email is empty
     def test_email_empty(self) -> None:
-        self.assertEqual(
-            "Email cannot be empty",
-            ShippingInfo.from_opt_values(
-                self.NAME, "", self.ADDRESS, self.CITY, self.ZIP_CODE
-            ),
-        )
+        with self.assertRaises(ValueError, msg="Email cannot be empty"):
+            ShippingInfo(self.NAME, "", self.ADDRESS, self.CITY, self.ZIP_CODE)
 
     # Failed initialization: Email does not contain @
     def test_email_no_at(self) -> None:
-        self.assertEqual(
-            "Email must contain `@`. Received john.doe.com",
-            ShippingInfo.from_opt_values(
+        with self.assertRaises(
+            ValueError, msg="Email must contain `@`. Received john.doe.com"
+        ):
+            ShippingInfo(
                 self.NAME, "john.doe.com", self.ADDRESS, self.CITY, self.ZIP_CODE
-            ),
-        )
+            )
 
     # Failed initialization: Address is None
     def test_address_none(self) -> None:
-        self.assertEqual(
-            "Address cannot be empty",
-            ShippingInfo.from_opt_values(
-                self.NAME, self.EMAIL, None, self.CITY, self.ZIP_CODE
-            ),
-        )
+        with self.assertRaises(ValueError, msg="Address cannot be empty"):
+            ShippingInfo(self.NAME, self.EMAIL, None, self.CITY, self.ZIP_CODE)
 
     # Failed initialization: Address is empty
     def test_address_empty(self) -> None:
-        self.assertEqual(
-            "Address cannot be empty",
-            ShippingInfo.from_opt_values(
-                self.NAME, self.EMAIL, "", self.CITY, self.ZIP_CODE
-            ),
-        )
+        with self.assertRaises(ValueError, msg="Address cannot be empty"):
+            ShippingInfo(self.NAME, self.EMAIL, "", self.CITY, self.ZIP_CODE)
 
     # Failed initialization: City is None
     def test_city_none(self) -> None:
-        self.assertEqual(
-            "City cannot be empty",
-            ShippingInfo.from_opt_values(
-                self.NAME, self.EMAIL, self.ADDRESS, None, self.ZIP_CODE
-            ),
-        )
+        with self.assertRaises(ValueError, msg="City cannot be empty"):
+            ShippingInfo(self.NAME, self.EMAIL, self.ADDRESS, None, self.ZIP_CODE)
 
     # Failed initialization: City is empty
     def test_city_empty(self) -> None:
-        self.assertEqual(
-            "City cannot be empty",
-            ShippingInfo.from_opt_values(
-                self.NAME, self.EMAIL, self.ADDRESS, "", self.ZIP_CODE
-            ),
-        )
+        with self.assertRaises(ValueError, msg="City cannot be empty"):
+            ShippingInfo(self.NAME, self.EMAIL, self.ADDRESS, "", self.ZIP_CODE)
 
     # Failed initialization: Zip Code is None
     def test_zip_code_none(self) -> None:
-        self.assertEqual(
-            "Zip code cannot be empty",
-            ShippingInfo.from_opt_values(
-                self.NAME, self.EMAIL, self.ADDRESS, self.CITY, None
-            ),
-        )
+        with self.assertRaises(ValueError, msg="Zip code cannot be empty"):
+            ShippingInfo(self.NAME, self.EMAIL, self.ADDRESS, self.CITY, None)
 
     # Failed initialization: Zip Code is empty
     def test_zip_code_empty(self) -> None:
-        self.assertEqual(
-            "Zip code cannot be empty",
-            ShippingInfo.from_opt_values(
-                self.NAME, self.EMAIL, self.ADDRESS, self.CITY, ""
-            ),
-        )
+        with self.assertRaises(ValueError, msg="Zip code cannot be empty"):
+            ShippingInfo(self.NAME, self.EMAIL, self.ADDRESS, self.CITY, "")
 
 
 class OrderTest(unittest.TestCase):
@@ -642,128 +602,78 @@ class CardPaymentInfoTest(unittest.TestCase):
     PAYMENT_METHOD: str = "credit_card"
     CARD_NUMBER: str = "123456789012345"
     EXPIRY_DATE: str = "12/25"
-    CCV: str = "123"
+    CVV: str = "123"
 
     # Successful init: Card number has 13 digits
     def test_card_number_13_digits(self) -> None:
-        card_number = "1234567890123"
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(card_number, self.EXPIRY_DATE, self.CCV),
-            CardPaymentInfo(
-                self.PAYMENT_METHOD, card_number, self.EXPIRY_DATE, self.CCV
-            ),
-        )
+        CardPaymentInfo("1234567890123", self.EXPIRY_DATE, self.CVV)
 
     # Successful init: Card number has 19 digits
     def test_card_number_19_digits(self) -> None:
-        card_number = "1234567890123456789"
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(card_number, self.EXPIRY_DATE, self.CCV),
-            CardPaymentInfo(
-                self.PAYMENT_METHOD, card_number, self.EXPIRY_DATE, self.CCV
-            ),
-        )
+        CardPaymentInfo("1234567890123456789", self.EXPIRY_DATE, self.CVV)
 
-    # Successful init: CCV has 3 digits
-    def test_ccv_3_digits(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(self.CARD_NUMBER, self.EXPIRY_DATE, "123"),
-            CardPaymentInfo(
-                self.PAYMENT_METHOD, self.CARD_NUMBER, self.EXPIRY_DATE, "123"
-            ),
-        )
+    # Successful init: CVV has 3 digits
+    def test_cvv_3_digits(self) -> None:
+        CardPaymentInfo(self.CARD_NUMBER, self.EXPIRY_DATE, "123")
 
-    # Successful init: CCV has 4 digits
-    def test_ccv_4_digits(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(self.CARD_NUMBER, self.EXPIRY_DATE, "1234"),
-            CardPaymentInfo(
-                self.PAYMENT_METHOD, self.CARD_NUMBER, self.EXPIRY_DATE, "1234"
-            ),
-        )
+    # Successful init: CVV has 4 digits
+    def test_cvv_4_digits(self) -> None:
+        CardPaymentInfo(self.CARD_NUMBER, self.EXPIRY_DATE, "1234")
 
     # Failed init: Card number is None
     def test_card_number_none(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(None, self.EXPIRY_DATE, self.CCV),
-            "Please provide a valid card number",
-        )
+        with self.assertRaises(ValueError, msg="Please provide a valid card number"):
+            CardPaymentInfo(None, self.EXPIRY_DATE, self.CVV)
 
     # Failed init: Card number empty
     def test_card_number_empty(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values("", self.EXPIRY_DATE, self.CCV),
-            "Please provide a valid card number",
-        )
+        with self.assertRaises(ValueError, msg="Please provide a valid card number"):
+            CardPaymentInfo("", self.EXPIRY_DATE, self.CVV)
 
     # Failed init: Card number is not a digit string
     def test_card_number_not_digit_string(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(
-                "1234567890AAA", self.EXPIRY_DATE, self.CCV
-            ),
-            "Please provide a valid card number",
-        )
+        with self.assertRaises(ValueError, msg="Please provide a valid card number"):
+            CardPaymentInfo("1234567890AAA", self.EXPIRY_DATE, self.CVV)
 
     # Failed init: Card number has 12 digits
     def test_card_number_12_digits(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values("123456789012", self.EXPIRY_DATE, self.CCV),
-            "Please provide a valid card number",
-        )
+        with self.assertRaises(ValueError, msg="Please provide a valid card number"):
+            CardPaymentInfo("123456789012", self.EXPIRY_DATE, self.CVV)
 
     # Failed init: Card number has 20 digits
     def test_card_number_20_digits(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(
-                "12345678901234567890", self.EXPIRY_DATE, self.CCV
-            ),
-            "Please provide a valid card number",
-        )
+        with self.assertRaises(ValueError, msg="Please provide a valid card number"):
+            CardPaymentInfo("12345678901234567890", self.EXPIRY_DATE, self.CVV)
 
     # Failed init: Expiry date has invalid format
     def test_expiry_date_invalid(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(self.CARD_NUMBER, "AB/CD", self.CCV),
-            "Please provide a valid expiry date",
-        )
+        with self.assertRaises(ValueError, msg="Please provide a valid expiry date"):
+            CardPaymentInfo(self.CARD_NUMBER, "AB/CD", self.CVV)
 
-    # Failed init: CCV is None
-    def test_ccv_none(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(self.CARD_NUMBER, self.EXPIRY_DATE, None),
-            "Please provide a valid cvv",
-        )
+    # Failed init: CVV is None
+    def test_cvv_none(self) -> None:
+        with self.assertRaises(ValueError, msg="Please provide a valid cvv"):
+            CardPaymentInfo(self.CARD_NUMBER, self.EXPIRY_DATE, None)
 
-    # Failed init: CCV is empty
-    def test_ccv_empty(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(self.CARD_NUMBER, self.EXPIRY_DATE, ""),
-            "Please provide a valid cvv",
-        )
+    # Failed init: CVV is empty
+    def test_cvv_empty(self) -> None:
+        with self.assertRaises(ValueError, msg="Please provide a valid cvv"):
+            CardPaymentInfo(self.CARD_NUMBER, self.EXPIRY_DATE, "")
 
-    # Failed init: CCV is not a digit string
-    def test_ccv_not_digit_string(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(self.CARD_NUMBER, self.EXPIRY_DATE, "AAA"),
-            "Please provide a valid cvv",
-        )
+    # Failed init: CVV is not a digit string
+    def test_cvv_not_digit_string(self) -> None:
+        with self.assertRaises(ValueError, msg="Please provide a valid cvv"):
+            CardPaymentInfo(self.CARD_NUMBER, self.EXPIRY_DATE, "AAA")
 
-    # Failed init: CCV has 2 digits
-    def test_ccv_2_digits(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(self.CARD_NUMBER, self.EXPIRY_DATE, "12"),
-            "Please provide a valid cvv",
-        )
+    # Failed init: CVV has 2 digits
+    def test_cvv_2_digits(self) -> None:
+        with self.assertRaises(ValueError, msg="Please provide a valid cvv"):
+            CardPaymentInfo(self.CARD_NUMBER, self.EXPIRY_DATE, "12")
 
-    # Failed init: CCV has 5 digits
-    def test_ccv_5_digits(self) -> None:
-        self.assertEqual(
-            CardPaymentInfo.from_opt_values(
-                self.CARD_NUMBER, self.EXPIRY_DATE, "12345"
-            ),
-            "Please provide a valid cvv",
-        )
+    # Failed init: CVV has 5 digits
+    def test_cvv_5_digits(self) -> None:
+        with self.assertRaises(ValueError, msg="Please provide a valid cvv"):
+            CardPaymentInfo(self.CARD_NUMBER, self.EXPIRY_DATE, "12345")
 
 
 class PaypalPaymentInfoTest(unittest.TestCase):
@@ -772,29 +682,22 @@ class PaypalPaymentInfoTest(unittest.TestCase):
 
     # Successful init
     def test_success(self) -> None:
-        self.assertEqual(
-            PaypalPaymentInfo.from_opt_values(self.EMAIL),
-            PaypalPaymentInfo(self.PAYMENT_METHOD, self.EMAIL),
-        )
+        PaypalPaymentInfo(self.EMAIL)
 
     # Failed init: Email is None
     def test_email_none(self) -> None:
-        self.assertEqual(
-            PaypalPaymentInfo.from_opt_values(None), "Please provide a valid email"
-        )
+        with self.assertRaises(ValueError, msg="Please provide a valid email"):
+            PaypalPaymentInfo(None)
 
     # Failed init: Email is empty
     def test_email_empty(self) -> None:
-        self.assertEqual(
-            PaypalPaymentInfo.from_opt_values(""), "Please provide a valid email"
-        )
+        with self.assertRaises(ValueError, msg="Please provide a valid email"):
+            PaypalPaymentInfo("")
 
     # Failed init: Email does not contain @
     def test_email_no_at(self) -> None:
-        self.assertEqual(
-            PaypalPaymentInfo.from_opt_values("john.doe.com"),
-            "Please provide a valid email",
-        )
+        with self.assertRaises(ValueError, msg="Please provide a valid email"):
+            PaypalPaymentInfo("john.doe.com")
 
 
 @patch("uuid.uuid4", return_value="some_uuid4")
@@ -803,7 +706,7 @@ class PaymentGatewayTest(unittest.TestCase):
     def test_success_card(self, uuid4_mock: Mock) -> None:
         self.assertEqual(
             PaymentGateway.process_payment(
-                CardPaymentInfo("credit_card", "123456789012345", "12/25", "123")
+                CardPaymentInfo("123456789012345", "12/25", "123")
             ),
             PaymentResult("Payment processed successfully", "TXNsome_uuid4"),
         )
@@ -814,7 +717,7 @@ class PaymentGatewayTest(unittest.TestCase):
     def test_success_paypal(self, uuid4_mock: Mock) -> None:
         self.assertEqual(
             PaymentGateway.process_payment(
-                CardPaymentInfo("credit_card", "123456789012345", "12/25", "123")
+                CardPaymentInfo("123456789012345", "12/25", "123")
             ),
             PaymentResult("Payment processed successfully", "TXNsome_uuid4"),
         )
@@ -825,7 +728,7 @@ class PaymentGatewayTest(unittest.TestCase):
     def test_success(self, uuid4_mock: Mock) -> None:
         self.assertEqual(
             PaymentGateway.process_payment(
-                CardPaymentInfo("credit_card", "123456789011111", "12/25", "123")
+                CardPaymentInfo("123456789011111", "12/25", "123")
             ),
             PaymentResult("Payment failed: Invalid card number", None),
         )
