@@ -22,6 +22,7 @@ from app import (
     order_confirmation,
     login,
     view_cart,
+    sanitize,
     get_current_user,
 )
 from flask import session
@@ -1580,3 +1581,24 @@ class UpdateProfileTest(unittest.TestCase):
         flash_mock.assert_called_once_with("Password updated successfully!", "success")
         url_for_mock.assert_called_once_with("account")
         redirect_mock.assert_called_once_with("url")
+
+
+class SanitizeTest(unittest.TestCase):
+    # Success: Provide None
+    def test_none(self) -> None:
+        self.assertEqual(sanitize(None), None)
+
+    # Success: Provide empty string
+    def test_empty_string(self) -> None:
+        self.assertEqual(sanitize(""), "")
+
+    # Success: Provide string without script
+    def test_good_string(self) -> None:
+        self.assertEqual(sanitize("Hello I am John Doe"), "Hello I am John Doe")
+
+    # Success: Provide string with HTML
+    def test_bad_string(self) -> None:
+        self.assertEqual(
+            sanitize('<script>alert("XSS")</script><b>Hello</b> world!'),
+            'alert("XSS")Hello world!',
+        )

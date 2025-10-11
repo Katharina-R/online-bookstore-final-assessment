@@ -19,6 +19,7 @@ from models import (
     CardPaymentInfo,
     PaypalPaymentInfo,
 )
+import bleach
 import uuid
 from functools import wraps
 
@@ -79,8 +80,8 @@ def index():
 
 @app.route("/add-to-cart", methods=["POST"])
 def add_to_cart():
-    book_title = request.form.get("title")
-    quantity = str(request.form.get("quantity", 1))
+    book_title = sanitize(request.form.get("title"))
+    quantity = str(sanitize(request.form.get("quantity")) or "1")
 
     # Validate quantity
     try:
@@ -105,7 +106,7 @@ def add_to_cart():
 
 @app.route("/remove-from-cart", methods=["POST"])
 def remove_from_cart():
-    book_title = request.form.get("title")
+    book_title = sanitize(request.form.get("title"))
 
     # Validate required fields
     if not book_title:
@@ -134,8 +135,8 @@ def update_cart():
         - Confirmation of removal if quantity <= 0
         - Confirmation of update otherwise
     """
-    book_title: Optional[str] = request.form.get("title")
-    quantity = str(request.form.get("quantity", 1))
+    book_title: Optional[str] = sanitize(request.form.get("title"))
+    quantity = str(sanitize(request.form.get("quantity")) or "1")
 
     # Validate quantity
     try:
@@ -199,17 +200,17 @@ def process_checkout():
     # Get shipping information
     try:
         shipping_info = ShippingInfo(
-            name=request.form.get("name"),
-            email=request.form.get("email"),
-            address=request.form.get("address"),
-            city=request.form.get("city"),
-            zip_code=request.form.get("zip_code"),
+            name=sanitize(request.form.get("name")),
+            email=sanitize(request.form.get("email")),
+            address=sanitize(request.form.get("address")),
+            city=sanitize(request.form.get("city")),
+            zip_code=sanitize(request.form.get("zip_code")),
         )
     except ValueError as e:
         flash(f"{e}", "error")
         return redirect(url_for("checkout"))
 
-    discount_code = request.form.get("discount_code")
+    discount_code = sanitize(request.form.get("discount_code"))
     if discount_code:
         discount_code = discount_code.upper().strip()
 
@@ -233,21 +234,23 @@ def process_checkout():
     total_amount = round(total_amount, 2)
 
     # Get payment information based on the payment method
-    payment_method = request.form.get("payment_method")
+    payment_method = sanitize(request.form.get("payment_method"))
     payment_info = None
     error = ""
     if payment_method == "credit_card":
         try:
             payment_info = CardPaymentInfo(
-                card_number=request.form.get("card_number"),
-                expiry_date=request.form.get("expiry_date"),
-                cvv=request.form.get("cvv"),
+                card_number=sanitize(request.form.get("card_number")),
+                expiry_date=sanitize(request.form.get("expiry_date")),
+                cvv=sanitize(request.form.get("cvv")),
             )
         except ValueError as e:
             error = f"{e}"
     elif payment_method == "paypal":
         try:
-            payment_info = PaypalPaymentInfo(email=request.form.get("paypal_email"))
+            payment_info = PaypalPaymentInfo(
+                email=sanitize(request.form.get("paypal_email"))
+            )
         except ValueError as e:
             error = f"{e}"
     else:
@@ -318,10 +321,10 @@ def order_confirmation(order_id: str):
 def register():
     """User registration"""
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
-        name = request.form.get("name")
-        address = request.form.get("address")
+        email = sanitize(request.form.get("email"))
+        password = sanitize(request.form.get("password"))
+        name = sanitize(request.form.get("name"))
+        address = sanitize(request.form.get("address"))
 
         # Validate required fields
         if not email or not password or not name or not address:
@@ -351,8 +354,8 @@ def register():
 def login():
     """User login"""
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+        email = sanitize(request.form.get("email"))
+        password = sanitize(request.form.get("password"))
 
         # Validate required fields
         if not email:
@@ -400,10 +403,10 @@ def update_profile():
         flash("Cannot update profile for unknown user", "error")
         return redirect(url_for("account"))
 
-    current_user.name = request.form.get("name", current_user.name)
-    current_user.address = request.form.get("address", current_user.address)
+    current_user.name = sanitize(request.form.get("name")) or current_user.name
+    current_user.address = sanitize(request.form.get("address")) or current_user.address
 
-    new_password = request.form.get("new_password")
+    new_password = sanitize(request.form.get("new_password"))
     if new_password:
         current_user.set_password(new_password)
         flash("Password updated successfully!", "success")
@@ -411,6 +414,13 @@ def update_profile():
         flash("Profile updated successfully!", "success")
 
     return redirect(url_for("account"))
+
+
+def sanitize(input: Optional[str]) -> Optional[str]:
+    if not input:
+        return input
+    else:
+        return bleach.clean(input, tags=[], strip=True)
 
 
 if __name__ == "__main__":
