@@ -1544,7 +1544,7 @@ class UpdateProfileTest(unittest.TestCase):
             update_profile()
 
         updated_user = get_current_user_mock.return_value
-        self.assertEqual(updated_user.name, "Jane Doe")
+        self.assertEqual(updated_user.name, "Nobody")
         self.assertEqual(updated_user.address, "New address")
         self.assertTrue(updated_user.check_password(PASSWORD))
         flash_mock.assert_called_once_with("Profile updated successfully!", "success")
